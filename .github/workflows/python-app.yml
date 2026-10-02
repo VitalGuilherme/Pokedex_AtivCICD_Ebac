@@ -29,7 +29,3 @@ jobs:
     - name: Testando o arquivo pytest
       run: |
         poetry run pytest
-
-    - name: Test with pytest
-      run: |
-        pytest
