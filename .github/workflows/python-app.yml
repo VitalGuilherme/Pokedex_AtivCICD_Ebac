@@ -33,7 +33,7 @@ jobs:
     - name: Checkout do arquivo docker
       uses: actions/checkout@v3
     - name: build da imagem docker
-      run: docker build -t fastapi-app:latest
+      run: docker build -t fastapi-app:latest .
       
       
 
