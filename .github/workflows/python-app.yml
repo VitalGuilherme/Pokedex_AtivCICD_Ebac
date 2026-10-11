@@ -12,6 +12,8 @@ on:
 jobs:
   fastapi-tests:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: fastapi-app:latest
 
     steps:
     - name: Checkout do código
@@ -33,7 +35,13 @@ jobs:
     - name: Checkout do arquivo docker
       uses: actions/checkout@v3
     - name: build da imagem docker
-      run: docker build -t fastapi-app:latest .
+      run: docker build -t $ IMAGE_NAME .
+    - name: subir container
+      run: doker run -d -p 8000:8000 --name app $IMAGE_NAME
+
+    - name: teste da requisição HTTP
+      run: |
+        curl --fail http://localhost:8000/health
       
       
 
