@@ -10,5 +10,7 @@ RUN poetry config virtualenvs.create false && poetry install --no-root
 
 COPY . .
 
-CMD ["poetry", "run", "uvicorn", "pokedex.py"]
+EXPOSE 8000
+
+CMD ["poetry", "run", "uvicorn", "pokedex.py" "--host", "0.0.0.0", "--port", "8000"]
 
