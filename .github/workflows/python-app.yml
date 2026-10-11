@@ -37,7 +37,7 @@ jobs:
     - name: build da imagem docker
       run: docker buildx build -t $IMAGE_NAME .
     - name: subir container
-      run: doker run -d -p 8000:8000 --name app $IMAGE_NAME
+      run: docker run -d -p 8000:8000 --name app $IMAGE_NAME
 
     - name: teste da requisição HTTP
       run: |
