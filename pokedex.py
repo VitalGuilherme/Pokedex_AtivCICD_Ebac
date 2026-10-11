@@ -7,131 +7,112 @@
 # E se precisar dos registros de captura de cada pokémon, é só solicitar a pokedex.
 
 
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 import datetime
 
+app = FastAPI(
+    title="Pokedex API",
+)
+
+# "Banco" em memória
 pokedex = {}
 
-capturas_historico = {}
 
-def adicionar_pokemon(nome, elemento, nivel):
-    pokemon = nome.strip()
-    if pokemon in pokedex:
-        return "Erro: Pokemon já cadastrado."
-    if not (1 <= nivel <= 100):
-            return "Erro: O nível do pokémon deve estar entre 1 e 100"
-    pokedex[pokemon] = {
-            "Elemento": elemento,
-            "Nivel": nivel,
-            "Total_Capturas": 0,
-            "capturas_historico": []
+# ---------- Schemas Pydantic ----------
 
+class PokemonCreate(BaseModel):
+    nome: str
+    elemento: str
+    nivel: int = Field(ge=1, le=100)   # valida 1 a 100 automaticamente
+
+
+class NivelUpdate(BaseModel):
+    novo_nivel: int = Field(ge=1, le=100)
+
+
+class CapturaCreate(BaseModel):
+    quantidade: int = Field(gt=0)      # tem que ser maior que zero
+
+
+# ---------- Rotas ----------
+
+@app.get("/health", tags=["Sistema"])
+def health():
+    """Verifica se a API está no ar."""
+    return {"status": "ok"}
+
+
+@app.post("/pokemon", tags=["Pokémon"])
+def adicionar_pokemon(obj: PokemonCreate):
+    nome = obj.nome.strip()
+    if nome in pokedex:
+        raise HTTPException(status_code=400, detail="Pokémon já cadastrado.")
+
+    pokedex[nome] = {
+        "elemento": obj.elemento,
+        "nivel": obj.nivel,
+        "total_capturas": 0,
+        "capturas_historico": [],
     }
-    return f"Pokémon {nome} de elemento {elemento} e nível {nivel}, cadastrado com sucesso!"
-    
-def listar_pokemon(pokedex):
+    return {"mensagem": f"Pokémon {nome} cadastrado com sucesso!"}
+
+
+@app.get("/pokemon", tags=["Pokémon"])
+def listar_pokemon():
     if not pokedex:
-        return "Nenhum Pokémon cadastrado."
-    else:
-        pokemon = ["Lista de Pokémons:"]
-        for nome, info in sorted(pokedex.items(), key=lambda item: item[0]):
-            pokemon.append(f"Nome: {nome} | Elemento: {info['Elemento']} | Nível: {info['Nível']}")
-        return "\n".join(pokemon)
+        return {"total": 0, "pokemons": []}
+
+    lista = [
+        {"nome": nome, "elemento": info["elemento"], "nivel": info["nivel"]}
+        for nome, info in sorted(pokedex.items())
+    ]
+    return {"total": len(lista), "pokemons": lista}
 
 
-def remover_pokemon(pokedex, nome):
-    pokemon = nome.strip()
-    if pokemon in pokedex:
-        del pokedex[pokemon]
-        return f"Pokémon '{pokemon}' removido com sucesso!"
-    else:
-        return "Erro: Pokémon não encontrado."
-    
-def atualizar_nivel_do_pokemon(pokedex, nome, novo_nivel):
-    pokemon = nome.strip()
-    
-    if pokemon in pokedex:
-        pokedex[pokemon]["Nível"] = novo_nivel
-        return f"Pokémon '{nome}' evolui nível para {novo_nivel}."
-    else:
-        return "Erro: Pokémon não encontrado."
-    
-def registrar_captura_de_pokemon(pokedex, nome, qtd_capturas):
-    pokemon = nome.strip()
-    if pokemon in pokedex:
-        pokedex[pokemon]['Total_Capturas'] += qtd_capturas
-        registro = {
-            "data": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "Capturas": qtd_capturas
-        }
-        pokedex[pokemon]["capturas_historico"].append(registro)
-        return f"Pokémon {nome} capturado {qtd_capturas} registrado com sucesso. Pokémons disponíveis: {pokedex[pokemon]['Total_Capturas']}."
-    else:
-        return "Erro: Pokémon não encontrado."
-    
-def exibir_historico_de_capturas(pokedex, nome):
-    pokemon = nome.strip()
-    if pokemon not in pokedex or not pokedex[pokemon]["capturas_historico"]:
-        return f"Nenhum registro de captura para'{pokemon}'."
-    historico = [f"Histórico de empréstimos para '{pokemon}':"]
-    for idx, registro in enumerate(pokedex[pokemon]["capturas_historico"],5):
-        historico.append(f"{idx}. Data: {registro['data']} | Quantidade: {registro['Capturas']}")
-    return "\n".join(historico)
+@app.delete("/pokemon/{nome}", tags=["Pokémon"])
+def remover_pokemon(nome: str):
+    nome = nome.strip()
+    if nome not in pokedex:
+        raise HTTPException(status_code=404, detail="Pokémon não encontrado.")
+    del pokedex[nome]
+    return {"mensagem": f"Pokémon '{nome}' removido com sucesso!"}
 
 
-def exibir_menu():
-    return (
-        "    Menu Pokedex    \n"
-        "1 - Adicionar pokémon\n"
-        "2 - Listar pokémon\n"
-        "3 - Remover pokémon\n"
-        "4 - Atualizar nível do pokémon\n"
-        "5 - Registrar captura de pokémon\n"
-        "6 - Exibir histórico de capturas\n"
-        "7 - Sair\n"
-        "----------------------------------------"
-    )
+@app.put("/pokemon/{nome}/nivel", tags=["Pokémon"])
+def atualizar_nivel(nome: str, obj: NivelUpdate):
+    nome = nome.strip()
+    if nome not in pokedex:
+        raise HTTPException(status_code=404, detail="Pokémon não encontrado.")
+    pokedex[nome]["nivel"] = obj.novo_nivel
+    return {"mensagem": f"Pokémon '{nome}' evoluiu para o nível {obj.novo_nivel}."}
 
-def main():
-    while True:
-        print(exibir_menu())
-        opcao = input("Escolha uma opção: ").strip()
 
-        if opcao == "1":
-            nome = input("Digite o nome do Pokémon: ")
-            try:
-                elemento = input("Digite qual o elemento do Pokémon: ")
-                nivel = int(input("Digite o nível do Pokémon: "))
-                print(adicionar_pokemon(nome, elemento, nivel))
-            except ValueError:
-                print("Erro: O nível do Pokémon deve ser entre 1 e 100.")
-        elif opcao == "2":
-            print(listar_pokemon(pokedex))
-        elif opcao == "3":
-            nome = input("Digite o nome do Pokémon que será removido da pokedex: ")
-            print(remover_pokemon(pokedex, nome))
-        elif opcao == "4":
-            nome = input("Digite o nome do Pokémon que será atualizado na Pokedex: ")
-            try:
-                novo_nivel = int(input("Digite o novo nível: "))
-                print(atualizar_nivel_do_pokemon(pokedex, nome, novo_nivel))
-            except ValueError:
-                print("Erro: Digite um nível entre 1 e 100.")
-        elif opcao == "5":
-            nome = input("Digite o nome do Pokémon: ")
-            try:
-                qtd_capturas = int(input("Digite quantas capturas que houve na caçada: "))
-                print(registrar_captura_de_pokemon(pokedex, nome, qtd_capturas))
-            except ValueError:
-                print("Erro: Quantidade de capturas não pode ser um número negativo.")
-        elif opcao == "6":
-            print(exibir_historico_de_capturas(pokedex, nome))
-        elif opcao == "7":  
-            print("Saindo do programa. Até mais!")
-            break
-        else:
-            print("Opção inválida. Tente novamente.")
-        
-        print("\n")
+@app.post("/pokemon/{nome}/captura", tags=["Capturas"])
+def registrar_captura(nome: str, obj: CapturaCreate):
+    nome = nome.strip()
+    if nome not in pokedex:
+        raise HTTPException(status_code=404, detail="Pokémon não encontrado.")
 
-if __name__ == "__main__":
-    main()
+    pokedex[nome]["total_capturas"] += obj.quantidade
+    pokedex[nome]["capturas_historico"].append({
+        "data": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "quantidade": obj.quantidade,
+    })
+    return {
+        "mensagem": f"{obj.quantidade} captura(s) de {nome} registrada(s).",
+        "total_capturas": pokedex[nome]["total_capturas"],
+    }
+
+
+@app.get("/pokemon/{nome}/historico", tags=["Capturas"])
+def exibir_historico(nome: str):
+    nome = nome.strip()
+    if nome not in pokedex:
+        raise HTTPException(status_code=404, detail="Pokémon não encontrado.")
+
+    historico = pokedex[nome]["capturas_historico"]
+    if not historico:
+        return {"pokemon": nome, "historico": []}
+
+    return {"pokemon": nome, "historico": historico}
