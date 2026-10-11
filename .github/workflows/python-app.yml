@@ -35,7 +35,7 @@ jobs:
     - name: Checkout do arquivo docker
       uses: actions/checkout@v3
     - name: build da imagem docker
-      run: docker buildx build -t $ IMAGE_NAME .
+      run: docker buildx build -t $IMAGE_NAME .
     - name: subir container
       run: doker run -d -p 8000:8000 --name app $IMAGE_NAME
 
