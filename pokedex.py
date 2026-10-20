@@ -8,12 +8,31 @@
 
 
 from fastapi import FastAPI, HTTPException
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
-import datetime
+from datetime import datetime
+import logging.config
+import yaml
+from elasticsearch import Elasticsearch
+
+
+ELASTICSEARCH_URL = "http://localhost:9200"
+ELASTICSEARCH_INDEX = "pokedex"
+es_client = Elasticsearch(ELASTICSEARCH_URL)
+
+es = Elasticsearch(ELASTICSEARCH_URL)
+with open("logging_config.yaml", "r") as f:
+    config = yaml.safe_load(f)
+    logging.config.dictConfig(config)
+
+logger = logging.getLogger(__name__)
+logger.info("Pokedex API iniciada com sucesso.")
 
 app = FastAPI(
     title="Pokedex API",
 )
+
+security = HTTPBasic()
 
 # "Banco" em memória
 pokedex = {}
@@ -44,7 +63,7 @@ def health():
 
 
 @app.post("/pokemon", tags=["Pokémon"])
-def adicionar_pokemon(obj: PokemonCreate):
+def adicionar_pokemon(obj: PokemonCreate, credentials: HTTPBasicCredentials = Depends(security)):
     nome = obj.nome.strip()
     if nome in pokedex:
         raise HTTPException(status_code=400, detail="Pokémon já cadastrado.")
@@ -55,7 +74,25 @@ def adicionar_pokemon(obj: PokemonCreate):
         "total_capturas": 0,
         "capturas_historico": [],
     }
-    return {"mensagem": f"Pokémon {nome} cadastrado com sucesso!"}
+    #return {"mensagem": f"Pokémon {nome} cadastrado com sucesso!"}
+
+    log = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "endpoint": "/pokemon",
+        "usuario": credentials.username,
+        "elemento": obj.elemento,
+                "nivel": obj.nivel,
+                "total_capturas": 0,
+                "capturas_historico": []
+    }
+
+    try:
+        es_client.index(index=ELASTICSEARCH_INDEX, body=log)
+    except Exception as e:
+        print(f"Erro ao enviar log para o Elasticsearch: {e}")
+
+    
+    return pokedex[nome]
 
 
 @app.get("/pokemon", tags=["Pokémon"])
