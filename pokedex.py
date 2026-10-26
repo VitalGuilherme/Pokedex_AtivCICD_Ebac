@@ -7,7 +7,7 @@
 # E se precisar dos registros de captura de cada pokémon, é só solicitar a pokedex.
 
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from datetime import datetime
